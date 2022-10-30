@@ -142,10 +142,8 @@ if N > 1e7
 end
 
 % Definitions according to the paper:
-i_XY_fcn = @(Px, x, y) log(exp(y.*x) ./ (Px * exp(y*sqrt(rho)) + (1-Px) * exp(-y*sqrt(rho)))) ;
-r_XY_fcn = @(Px, y) -log((Px * exp(y*sqrt(rho)) + (1-Px) * exp(-y*sqrt(rho)))) + rho/2 ;
-% r_XY_fcn2 = @(Px, y) -log((Px * exp(y*sqrt(rho)+rho) + (1-Px) * exp(-y*sqrt(rho)-rho))) + rho/2 ;
-
+i_XY_fcn = @(Px, x, y) log(exp(y.*x) ./ (Px * exp(-y*sqrt(rho)) + (1-Px) * exp(y*sqrt(rho)))) ;
+r_XY_fcn = @(Px, y) log((Px * exp(-y*sqrt(rho)) + (1-Px) * exp(y*sqrt(rho)))) - rho/2 ;
 % STEP 1: Skew input: try to find Px such that emd and efa are satisfied.
 steplength = 0.01;
 Px_1 = 0.5-steplength;
@@ -162,14 +160,14 @@ while emd > Emd
     end
     
     %Obtain ccdf of the r.v.'s
-    [cdf_R, Rx] = ecdf(-r_Y_noise); %use built in function to obtain empirical cdf
+    [cdf_R, Rx] = ecdf(r_Y_noise); %use built in function to obtain empirical cdf
     Rx(1) = Rx(1) + 1e-8;
     gamma_fa = interp1(cdf_R, Rx, 1-Efa); % this is the minimum value of the threshold we can use
     
     %[cdf_R2, Rx2] = ecdf(-r_Y); %use built in function to obtain empirical cdf
     %Rx2(1) = Rx2(1) + 1e-8;
     %emd2 = interp1(Rx2,cdf_R2, gamma_fa); % This version requires many more samples
-    emd = mean(exp(-r_Y_noise) .* (-r_Y_noise < gamma_fa)); % Includes a change of measure.
+    emd = mean(exp(r_Y_noise) .* (r_Y_noise < gamma_fa)); % Includes a change of measure.
     
     if Px_1 >= 1
         R=0; return;
@@ -198,13 +196,13 @@ while R <= R_test
     
     [cdf_R, Rx] = ecdf(r_Y_noise); %use built in function to obtain empirical cdf
     %Rx(1) = Rx(1) + 1e-8;
-    gamma_fa = interp1(cdf_R, Rx, Efa); % this is the minimum value of the threshold we can use
+    gamma_fa = interp1(cdf_R, Rx, 1-Efa); % this is the minimum value of the threshold we can use
     
-    emd = mean(exp(-r_Y_noise) .* (r_Y_noise > gamma_fa));
+    emd = mean(exp(r_Y_noise) .* (r_Y_noise < gamma_fa));
     
     % Generate information density i(X;Y): (Definition in the paper)
     for i = 1:n
-        X = sqrt(rho)*(-1).^(rand(N,1) > Px_1); %Pr[X=1]=Px
+        X = -sqrt(rho)*(-1).^(rand(N,1) > Px_1); %Pr[X=1]=Px
         Y = X + gaussian_rv(0,1,1,N);
         i_XY = i_XY + i_XY_fcn(Px_1, X, Y);
     end
@@ -546,7 +544,7 @@ end
 
 function [R, Px_1] = converse_Th2(n, rho, Efa, Emd, Eie)
 %
-% converse_Th3(n, rho, Efa, Emd, Eie):
+% converse_Th2(n, rho, Efa, Emd, Eie):
 % Computation of the converse bound given in Theorem 2 for joint
 % detection and decoding for the bi-AWGN channel. We use QY=PY. 
 %
@@ -565,8 +563,8 @@ if N > 1e7
 end
 
 % Definitions according to the paper:
-i_XY_fcn = @(Px, x, y) log(exp(y.*x) ./ (Px * exp(y*sqrt(rho)) + (1-Px) * exp(-y*sqrt(rho)))) ;
-r_XY_fcn = @(Px, y) -log((Px * exp(y*sqrt(rho)) + (1-Px) * exp(-y*sqrt(rho)))) + rho/2 ;
+i_XY_fcn = @(Px, x, y) log(exp(y.*x) ./ (Px * exp(-y*sqrt(rho)) + (1-Px) * exp(y*sqrt(rho)))) ;
+r_XY_fcn = @(Px, y) log((Px * exp(-y*sqrt(rho)) + (1-Px) * exp(y*sqrt(rho)))) - rho/2 ;
 
 % STEP 1: Skew input: Find Px such that emd and efa are satisfied.
 steplength = 0.01;
@@ -583,12 +581,12 @@ while emd > Emd
     end
     
     %Obtain ccdf of the r.v.'s
-    [cdf_R, Rx] = ecdf(r_Y_noise); %use built in function to obtain empirical cdf
+    [cdf_R, Rx] = ecdf(-r_Y_noise); %use built in function to obtain empirical cdf
     Rx(1) = Rx(1) + 1e-8;
     
     gamma_fa = interp1(cdf_R, Rx, Efa); % this is the minimum value of the threshold we can use
     
-    emd = mean(exp(-r_Y_noise) .* (r_Y_noise > gamma_fa)); % Using the change of measure trick
+    emd = mean(exp(r_Y_noise) .* (-r_Y_noise > gamma_fa)); % Using the change of measure trick
     
     if Px_1 >= 1
         R=0; return;
@@ -615,17 +613,17 @@ while R <= R_test
         r_Y_noise = r_Y_noise + r_XY_fcn(Px_1, Y);
     end
     
-    [cdf_R, Rx] = ecdf(r_Y_noise); %use built in function to obtain empirical cdf
+    [cdf_R, Rx] = ecdf(-r_Y_noise); %use built in function to obtain empirical cdf
     %Rx(1) = Rx(1) + 1e-8;
     gamma_fa = interp1(cdf_R, Rx, Efa); % this is the minimum value of the threshold we can use
     
-    beta_fa = mean(exp(-r_Y_noise) .* (r_Y_noise > gamma_fa)); % Using the change of measure trick
+    beta_fa = mean(exp(r_Y_noise) .* (-r_Y_noise > gamma_fa)); % Using the change of measure trick
     
     % STEP 3: Computation of M. We only get here if the previous condition
     % is not true.
     % Generate information density i(X;Y): (Definition in the paper)
     for i = 1:n
-        X = sqrt(rho)*(-1).^(rand(N,1) > Px_1); %Pr[X=1]=Px
+        X = -sqrt(rho)*(-1).^(rand(N,1) > Px_1); %Pr[X=1]=Px
         Y = X + gaussian_rv(0,1,1,N);
         i_XY = i_XY + i_XY_fcn(Px_1, X, Y);
     end
